@@ -1,0 +1,33 @@
+{
+  "name": "prettier-plugin-uncomment",
+  "version": "0.1.0",
+  "description": "Prettier plugin that strips comments from JS/TS/JSX/Flow files, keeping tooling directives and developer-flagged comments.",
+  "type": "module",
+  "main": "index.js",
+  "exports": {
+    ".": "./index.js"
+  },
+  "files": [
+    "index.js",
+    "README.md"
+  ],
+  "scripts": {
+    "test": "node --test"
+  },
+  "keywords": [
+    "prettier",
+    "prettier-plugin",
+    "comments",
+    "uncomment",
+    "strip-comments",
+    "remove-comments"
+  ],
+  "author": "Lasse",
+  "license": "ISC",
+  "peerDependencies": {
+    "prettier": ">=3.0.0"
+  },
+  "devDependencies": {
+    "prettier": "^3.9.6"
+  }
+}
