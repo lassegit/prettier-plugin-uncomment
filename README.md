@@ -12,7 +12,47 @@ npm install --save-dev prettier prettier-plugin-uncomment
 
 ## Usage
 
-Add it to your Prettier config:
+### On-demand, without installing (recommended)
+
+Stripping comments is destructive, so you usually want to run it deliberately —
+not on every format. Use Prettier's `--plugin` flag, which applies the plugin
+**only for that one command** and never persists to your config. `npx` fetches
+Prettier and the plugin transiently (nothing is added to `package.json`):
+
+```sh
+npx --package prettier --package prettier-plugin-uncomment -- \
+  prettier --plugin prettier-plugin-uncomment \
+  --write "src/**/*.{js,jsx,ts,tsx}"
+```
+
+If Prettier and the plugin are already installed in the project, the same run is
+just:
+
+```sh
+prettier --plugin=prettier-plugin-uncomment --write "src/**/*.{js,jsx,ts,tsx}"
+```
+
+Your existing Prettier config (print width, semicolons, …) is still read and
+applied — `--plugin` only adds this plugin on top for that run.
+
+If you run it often, wrap it in a `package.json` script. This lives in
+`scripts` (not in your Prettier config), so it never triggers on a normal
+format — only when you invoke it:
+
+```json
+{
+  "scripts": {
+    "uncomment": "prettier --plugin=prettier-plugin-uncomment --write"
+  }
+}
+```
+
+Pass the files to strip when you run it: `npm run uncomment -- "src/**/*.ts"`.
+
+### Always-on, via config
+
+If you really do want comments stripped on every format, add it to your Prettier
+config instead:
 
 ```json
 {
@@ -20,9 +60,9 @@ Add it to your Prettier config:
 }
 ```
 
-Then run Prettier as usual (`npx prettier --write .`). Comments are removed on
-format. As with any Prettier run, list the folders you never want touched in
-`.prettierignore`; see also [`uncommentIgnorePaths`](#options) below.
+Then run Prettier as usual (`npx prettier --write .`). As with any Prettier run,
+list the folders you never want touched in `.prettierignore`; see also
+[`uncommentIgnorePaths`](#options) below.
 
 ## What is kept
 
