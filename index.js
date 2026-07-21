@@ -72,8 +72,34 @@ function commentText(comment) {
   return isBlock ? `/*${comment.value}*/` : `//${comment.value}`;
 }
 
+/** Start offset of a comment node, across the different parser shapes. */
+function commentStart(comment) {
+  if (typeof comment.start === "number") return comment.start;
+  if (Array.isArray(comment.range)) return comment.range[0];
+  return undefined;
+}
+
+/**
+ * A shebang / hashbang (`#!/usr/bin/env node`) is not a comment: dropping it
+ * breaks executable scripts. Prettier hands it to us inside `ast.comments`, so
+ * we have to recognise and preserve it.
+ *
+ * - babel / babel-ts / flow expose it as an `InterpreterDirective` node.
+ * - typescript reports it as an ordinary `Line` comment; the only reliable
+ *   signal is that the raw source at its offset (always 0) starts with `#!`.
+ */
+function isShebang(comment, source) {
+  if (comment.type === "InterpreterDirective") return true;
+  return (
+    commentStart(comment) === 0 &&
+    typeof source === "string" &&
+    source.startsWith("#!")
+  );
+}
+
 /** Decide whether a single comment should be kept. */
-function shouldKeep(comment, extra) {
+function shouldKeep(comment, extra, source) {
+  if (isShebang(comment, source)) return true;
   const text = commentText(comment);
   if (KEEP.some((re) => re.test(text))) return true;
   if (KEEP_I.some((re) => re.test(text))) return true;
@@ -109,7 +135,7 @@ function withUncomment(parser) {
       const ast = await parser.parse(text, options);
       if (Array.isArray(ast.comments) && !isIgnoredFile(options)) {
         const extra = extraKeep(options);
-        ast.comments = ast.comments.filter((c) => shouldKeep(c, extra));
+        ast.comments = ast.comments.filter((c) => shouldKeep(c, extra, text));
       }
       return ast;
     },
@@ -145,6 +171,6 @@ export const options = {
 };
 
 // Exposed for testing.
-export const _internal = { shouldKeep, isIgnoredFile, commentText, KEEP, KEEP_I };
+export const _internal = { shouldKeep, isShebang, isIgnoredFile, commentText, KEEP, KEEP_I };
 
 export default { parsers, options };
