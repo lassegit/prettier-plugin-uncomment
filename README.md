@@ -1,8 +1,9 @@
 # prettier-plugin-uncomment
 
 A Prettier plugin that **strips comments** from JavaScript, TypeScript, JSX and
-Flow files — every `//`, `/* … */` and `/** … */` — **except** comments that
-mean something to tooling or that a developer has explicitly flagged to keep.
+Flow files — every `//` and `/* … */` — **except** comments that mean something
+to tooling, **JSDoc** that documents your code, or comments a developer has
+explicitly flagged to keep.
 
 ## Install
 
@@ -90,6 +91,16 @@ Everything else is removed. Comments matching any of the following survive:
 - `@flow`, `@noflow`
 - `@license`, `@preserve`, `@copyright`, and `/*! … */` banner comments
 
+**JSDoc that documents your code** (the docs that feed TS/editor hover info)
+
+- `/** … */` blocks containing a recognized JSDoc tag — `@param`, `@returns`,
+  `@type`, `@typedef`, `@template`, `@satisfies`, `@callback`, `@enum`,
+  `@deprecated`, `@see`, `@example`, and the like.
+- Detection uses the same `/**`-prefix rule TypeScript and editors use to
+  identify a doc comment — no substring guessing. Prose-only `/** … */` blocks
+  (doc-comment delimiters with no tag) are still stripped by default; tune this
+  with [`uncommentJsdoc`](#options).
+
 **Developer-flagged comments** (case-insensitive)
 
 - `@hc`, `@hn`, `@Hacker Note`, `@Hacker Comment`
@@ -101,12 +112,14 @@ Everything else is removed. Comments matching any of the following survive:
 | ---------------------- | ---------- | ----------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
 | `uncommentIgnorePaths` | `string[]` | `node_modules`, `dist`, `build`, `out`, `.next`, `.nuxt`, `.svelte-kit`, `coverage`, `vendor` | Path **segments** whose files are left untouched. Setting this **replaces** the default list.   |
 | `uncommentKeep`        | `string[]` | `[]`                                                                                      | Extra case-insensitive substrings; any comment containing one is kept (extends the keep-list).  |
+| `uncommentJsdoc`       | `"tagged" \| "all" \| "off"` | `"tagged"`                                                              | How to treat `/** … */` blocks. `tagged`: keep only blocks with a recognized JSDoc tag. `all`: keep every doc block. `off`: strip them unless another rule keeps them. |
 
 ```json
 {
   "plugins": ["prettier-plugin-uncomment"],
   "uncommentIgnorePaths": ["node_modules", "dist", "generated"],
-  "uncommentKeep": ["@keep", "IMPORTANT"]
+  "uncommentKeep": ["@keep", "IMPORTANT"],
+  "uncommentJsdoc": "tagged"
 }
 ```
 

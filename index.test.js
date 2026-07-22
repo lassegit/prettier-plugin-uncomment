@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import prettier from "prettier";
 import * as plugin from "./index.js";
 
-const { shouldKeep, isShebang, isIgnoredFile } = plugin._internal;
+const { shouldKeep, isShebang, isIgnoredFile, isJsdoc } = plugin._internal;
 
 const line = (value) => ({ type: "CommentLine", value });
 const block = (value) => ({ type: "CommentBlock", value });
@@ -44,7 +44,7 @@ const KEPT = [
 const REMOVED = [
   line(" a plain comment"),
   block(" a plain block "),
-  block("*\n * jsdoc\n "),
+  block("*\n * jsdoc\n "), // JSDoc-styled but no recognized tag -> stripped
   line(" this mentions todos but not the keyword-ish"), // 'todos' -> no \bTODO\b
   line(" note: lowercase note is not kept"),
   line(" description of eslint rules"), // no eslint-disable/enable
@@ -65,6 +65,36 @@ test("removes ordinary comments", () => {
 test("uncommentKeep adds case-insensitive substrings", () => {
   assert.equal(shouldKeep(line(" KeepMe please"), []), false);
   assert.equal(shouldKeep(line(" KeepMe please"), ["keepme"]), true);
+});
+
+// --- JSDoc ----------------------------------------------------------------
+
+test("isJsdoc matches /** */ blocks only", () => {
+  assert.equal(isJsdoc(block("* @type {X} ")), true); // /** @type {X} */
+  assert.equal(isJsdoc(block("*\n * doc\n ")), true); // /** ... */
+  assert.equal(isJsdoc(block(" normal block ")), false); // /* ... */
+  assert.equal(isJsdoc(block("")), false); // /**/
+  assert.equal(isJsdoc(block("! banner ")), false); // /*! ... */
+  assert.equal(isJsdoc(line(" @param {X} x")), false); // line comment
+});
+
+test("'tagged' mode (default) keeps JSDoc with a recognized tag", () => {
+  assert.equal(shouldKeep(block("*\n * @param {number} x\n * @returns {number}\n "), []), true);
+  assert.equal(shouldKeep(block("* @type {User} "), []), true);
+  assert.equal(shouldKeep(block("* @deprecated use bar() instead "), []), true);
+  assert.equal(shouldKeep(block("* @typedef {object} Foo "), []), true);
+});
+
+test("'tagged' mode strips prose-only JSDoc", () => {
+  assert.equal(shouldKeep(block("* Just a description, no tags. "), []), false);
+  assert.equal(shouldKeep(block("*\n * Multi-line prose\n * still no tags\n "), []), false);
+});
+
+test("'all' mode keeps every JSDoc block; 'off' keeps none by JSDoc-ness", () => {
+  assert.equal(shouldKeep(block("* just prose "), [], undefined, "all"), true);
+  assert.equal(shouldKeep(block("* @param {number} x "), [], undefined, "off"), false);
+  // 'off' does not disable the other keep-rules
+  assert.equal(shouldKeep(block("* @ts-check "), [], undefined, "off"), true);
 });
 
 // --- shebang / hashbang ---------------------------------------------------
@@ -149,4 +179,31 @@ test("preserves the shebang while stripping comments (all parsers)", async () =>
     assert.ok(out.startsWith("#!/usr/bin/env node"), `${parser}: shebang kept`);
     assert.ok(!out.includes("gone"), `${parser}: comment stripped`);
   }
+});
+
+test("keeps tagged JSDoc, strips prose JSDoc (integration, default mode)", async () => {
+  const src =
+    [
+      "/**",
+      " * @param {number} x the input",
+      " * @returns {number}",
+      " */",
+      "function id(x) { return x; }",
+      "/** just some prose an AI wrote */",
+      "const y = 1;",
+    ].join("\n") + "\n";
+  const out = await fmt(src);
+  assert.ok(out.includes("@param"), "tagged JSDoc kept");
+  assert.ok(out.includes("@returns"), "tagged JSDoc kept");
+  assert.ok(!out.includes("prose an AI wrote"), "prose JSDoc stripped");
+});
+
+test("uncommentJsdoc: 'all' keeps prose-only JSDoc", async () => {
+  const out = await fmt("/** prose only */\nconst a = 1;\n", { uncommentJsdoc: "all" });
+  assert.ok(out.includes("prose only"));
+});
+
+test("uncommentJsdoc: 'off' strips even tagged JSDoc", async () => {
+  const out = await fmt("/** @param {number} x */\nconst a = 1;\n", { uncommentJsdoc: "off" });
+  assert.ok(!out.includes("@param"));
 });
